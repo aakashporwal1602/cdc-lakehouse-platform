@@ -39,6 +39,10 @@ marts that power BI dashboards.
 > Great Expectations contracts, complete CI/CD, Docker Compose for local, and
 > Kubernetes manifests for production.
 
+> 🧠 **New to CDC / lakehouses?** Read **[docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md)**
+> — the entire system explained from scratch in plain language, answering every
+> *why* and *how*.
+
 ## 2. Architecture
 
 ```
