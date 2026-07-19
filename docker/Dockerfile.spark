@@ -1,7 +1,7 @@
 # Spark image with Iceberg + Kafka + S3 runtime jars and the cdc_platform package.
 # The base ships Python 3.8; the package runs on it via eval-type-backport, so no
 # extra Python runtime is installed (keeps the image small and the build robust).
-FROM apache/spark:3.5.1-python3
+FROM apache/spark:4.2.0-python3
 
 USER root
 ENV ICEBERG_VERSION=1.5.2 \
