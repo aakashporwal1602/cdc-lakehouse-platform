@@ -6,4 +6,4 @@ ruff>=0.4
 mypy>=1.9
 black>=24.3
 great-expectations>=0.18
-dbt-trino>=1.7
+dbt-trino>=1.10.2
