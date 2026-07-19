@@ -32,7 +32,7 @@ jobs:
         with: {python-version: "3.11", cache: pip}
       - run: pip install -e ".[dev]"
       - run: pytest -m unit --cov=cdc_platform --cov-report=xml --cov-fail-under=80
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v7
         with: {files: coverage.xml}
         continue-on-error: true
 
