@@ -41,7 +41,7 @@ marts that power BI dashboards.
 
 ## 2. Architecture
 
-\`\`\`
+```
 ┌──────────┐  WAL   ┌──────────┐  Avro  ┌────────┐ micro-batch ┌──────────────────┐
 │ Postgres │───────▶│ Debezium │───────▶│ Kafka  │────────────▶│ Spark Structured │
 │  (OLTP)  │ logical│ (Connect)│ +Schema│        │exactly-once │    Streaming     │
@@ -57,58 +57,58 @@ marts that power BI dashboards.
 
   Orchestration: Airflow · Transforms: dbt · Contracts: Great Expectations
   Observability: Prometheus + Grafana · Ship: Docker Compose / K8s / GitHub Actions
-\`\`\`
+```
 
 Rich diagrams (system, CDC flow, sequence, medallion, deployment) live in
-[\`docs/diagrams/\`](docs/diagrams/) and render natively on GitHub.
+[`docs/diagrams/`](docs/diagrams/) and render natively on GitHub.
 
 ## 3. The data model
 
 Five OLTP tables replicated end-to-end. Full DDL in
-[\`infra/postgres/init/01_schema.sql\`](infra/postgres/init/01_schema.sql).
+[`infra/postgres/init/01_schema.sql`](infra/postgres/init/01_schema.sql).
 
 | Table | Grain | Primary key | Notable columns |
 |-------|-------|-------------|-----------------|
-| \`customers\` | one row per customer | \`customer_id\` | email, tier, country, updated_at |
-| \`products\` | one row per SKU | \`product_id\` | category, unit_price, is_active |
-| \`inventory\` | one row per (product, warehouse) | \`inventory_id\` | quantity_on_hand, reorder_level |
-| \`orders\` | one row per order | \`order_id\` | customer_id (FK), status, order_total |
-| \`payments\` | one row per payment attempt | \`payment_id\` | order_id (FK), method, amount, status |
+| `customers` | one row per customer | `customer_id` | email, tier, country, updated_at |
+| `products` | one row per SKU | `product_id` | category, unit_price, is_active |
+| `inventory` | one row per (product, warehouse) | `inventory_id` | quantity_on_hand, reorder_level |
+| `orders` | one row per order | `order_id` | customer_id (FK), status, order_total |
+| `payments` | one row per payment attempt | `payment_id` | order_id (FK), method, amount, status |
 
 ## 4. Medallion layers
 
 | Layer | Iceberg namespace | Semantics | Written by |
 |-------|-------------------|-----------|------------|
-| **Bronze** | \`lakehouse.bronze.*\` | Immutable append-only log of every CDC event (op, before, after, LSN, ts). | \`streaming/bronze\` |
-| **Silver** | \`lakehouse.silver.*\` | Deduplicated, ordered, PK-collapsed current state via Iceberg \`MERGE INTO\`. Deletes tombstoned. | \`streaming/silver\` |
-| **Gold** | \`lakehouse.gold.*\` | Conformed business marts. Star-schema facts & dims. | \`dbt\` + \`streaming/gold\` |
+| **Bronze** | `lakehouse.bronze.*` | Immutable append-only log of every CDC event (op, before, after, LSN, ts). | `streaming/bronze` |
+| **Silver** | `lakehouse.silver.*` | Deduplicated, ordered, PK-collapsed current state via Iceberg `MERGE INTO`. Deletes tombstoned. | `streaming/silver` |
+| **Gold** | `lakehouse.gold.*` | Conformed business marts. Star-schema facts & dims. | `dbt` + `streaming/gold` |
 
 ### Gold marts exposed
 
-- **Customer Analytics** — \`gold.dim_customer\`, \`gold.customer_360\` (RFM, LTV, tenure).
-- **Sales Dashboard** — \`gold.fct_sales\`, \`gold.sales_daily\`.
-- **Revenue** — \`gold.revenue_daily\`, \`gold.revenue_by_segment\`.
-- **Inventory** — \`gold.inventory_health\` (days-of-cover, stockout risk).
-- **Order Metrics** — \`gold.order_funnel\`, \`gold.fulfillment_sla\`.
+- **Customer Analytics** — `gold.dim_customer`, `gold.customer_360` (RFM, LTV, tenure).
+- **Sales Dashboard** — `gold.fct_sales`, `gold.sales_daily`.
+- **Revenue** — `gold.revenue_daily`, `gold.revenue_by_segment`.
+- **Inventory** — `gold.inventory_health` (days-of-cover, stockout risk).
+- **Order Metrics** — `gold.order_funnel`, `gold.fulfillment_sla`.
 
 ## 5. Correctness guarantees
 
 | Concern | How it's solved |
 |---------|-----------------|
-| **INSERT/UPDATE/DELETE** | Debezium \`op\` codes \`c/u/d/r\` decoded in Bronze; deletes carry \`before\` image, tombstoned in Silver. |
+| **INSERT/UPDATE/DELETE** | Debezium `op` codes `c/u/d/r` decoded in Bronze; deletes carry `before` image, tombstoned in Silver. |
 | **Schema evolution** | Schema Registry (BACKWARD compat) + Iceberg native add/rename/reorder. |
-| **Deduplication** | Window over PK ordered by \`(source_lsn, source_ts_ms)\`; keep latest. Idempotent MERGE. |
-| **Primary keys** | Declared per table in [\`configs/tables.yml\`](configs/tables.yml). |
+| **Deduplication** | Window over PK ordered by `(source_lsn, source_ts_ms)`; keep latest. Idempotent MERGE. |
+| **Primary keys** | Declared per table in [`configs/tables.yml`](configs/tables.yml). |
 | **Out-of-order events** | Ordering by LSN, not wall-clock; watermarks bound state; MERGE reconciles late data. |
-| **Retries** | \`tenacity\` exponential backoff on all external I/O; Connect + Spark task retries. |
+| **Retries** | `tenacity` exponential backoff on all external I/O; Connect + Spark task retries. |
 | **Checkpointing** | Spark checkpoint per stream on S3; offsets committed atomically with output. |
 | **Exactly-once** | Kafka offsets + Iceberg atomic snapshot commit in one micro-batch; idempotent MERGE makes replays safe. |
 
-See [\`docs/DESIGN_DECISIONS.md\`](docs/DESIGN_DECISIONS.md) for the *why*.
+See [`docs/DESIGN_DECISIONS.md`](docs/DESIGN_DECISIONS.md) for the *why*.
 
 ## 6. Repository layout
 
-\`\`\`
+```
 cdc-lakehouse-platform/
 ├── docker-compose.yml            # Full local stack
 ├── Makefile                      # One-word entrypoints
@@ -129,13 +129,13 @@ cdc-lakehouse-platform/
 ├── tests/                        # unit + integration
 ├── docs/                         # diagrams, ADRs, design, interview Q&A
 └── .github/workflows/            # CI, docker, release
-\`\`\`
+```
 
 ## 7. Quickstart
 
 Requires Docker 24+, Compose v2, ~8 GB RAM free.
 
-\`\`\`bash
+```bash
 git clone https://github.com/your-org/cdc-lakehouse-platform.git
 cd cdc-lakehouse-platform
 make up                    # boot the full stack
@@ -146,7 +146,7 @@ make silver                # start Silver streaming job
 make simulate              # continuous INSERT/UPDATE/DELETE traffic
 make dbt-run               # build Gold marts
 make gx                    # run data-quality checkpoints
-\`\`\`
+```
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
@@ -160,24 +160,26 @@ make gx                    # run data-quality checkpoints
 
 ## 8. Screenshots
 
-> Placeholders — drop real captures into \`docs/images/\`.
-
 | Superset — Sales & Revenue | Grafana — Pipeline Health |
 |:--:|:--:|
 | ![Superset](docs/images/superset_sales.png) | ![Grafana](docs/images/grafana_pipeline.png) |
 
-| Airflow — Medallion DAG | CDC flow latency |
+| Airflow — Medallion DAG | Grafana — CDC event flow |
 |:--:|:--:|
 | ![Airflow](docs/images/airflow_dag.png) | ![Latency](docs/images/cdc_latency.png) |
 
+All 15 services running locally via Docker Compose:
+
+![Services](docs/images/services_running.png)
+
 ## 9. Scalability, bottlenecks, tradeoffs, future work
 
-Full treatment in [\`docs/DESIGN_DECISIONS.md\`](docs/DESIGN_DECISIONS.md). Headlines:
+Full treatment in [`docs/DESIGN_DECISIONS.md`](docs/DESIGN_DECISIONS.md). Headlines:
 
 - **Scale-out** is horizontal at every hop: partition Kafka by PK hash, add Spark
   executors, async Iceberg compaction, Trino workers scale with query load.
 - **Primary bottleneck** is single-slot Postgres logical decoding; mitigated by
-  publication filtering, \`pgoutput\`, and (extreme scale) sharded slots.
+  publication filtering, `pgoutput`, and (extreme scale) sharded slots.
 - **Key tradeoff**: micro-batch latency (seconds) vs. true continuous — chosen for
   Iceberg commit atomicity and operational simplicity.
 - **Future**: Flink for sub-second SLAs, Iceberg WAP branching, automated
@@ -185,17 +187,17 @@ Full treatment in [\`docs/DESIGN_DECISIONS.md\`](docs/DESIGN_DECISIONS.md). Head
 
 ## 10. Testing & quality gates
 
-\`\`\`bash
+```bash
 make lint              # ruff + black + mypy (strict)
 make test              # unit tests, 80% coverage gate
 make test-integration  # end-to-end against compose
 make gx                # Great Expectations contracts
-\`\`\`
+```
 
 ## 11. Interview prep
 
 Module-by-module questions **with answers** in
-[\`docs/interview/\`](docs/interview/).
+[`docs/interview/`](docs/interview/).
 
 ## 12. License
 
