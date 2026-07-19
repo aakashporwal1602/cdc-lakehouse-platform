@@ -133,6 +133,9 @@ cdc-lakehouse-platform/
 
 ## 7. Quickstart
 
+> 📖 For the full step-by-step guide (prerequisites, phase-by-phase commands,
+> UIs, and troubleshooting) see **[SETUP.md](SETUP.md)**.
+
 Requires Docker 24+, Compose v2, ~8 GB RAM free.
 
 ```bash
