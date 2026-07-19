@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-connect
+  namespace: cdc-platform
+spec:
+  replicas: 2  # distributed Connect cluster for HA CDC
+  selector: {matchLabels: {app: kafka-connect}}
+  template:
+    metadata: {labels: {app: kafka-connect}}
+    spec:
+      containers:
+        - name: connect
+          image: debezium/connect:2.7.3.Final
+          ports: [{containerPort: 8083}]
+          envFrom: [{configMapRef: {name: cdc-config}}]
+          env:
+            - {name: GROUP_ID, value: "cdc-connect"}
+            - {name: CONFIG_STORAGE_TOPIC, value: "_connect_configs"}
+            - {name: OFFSET_STORAGE_TOPIC, value: "_connect_offsets"}
+            - {name: STATUS_STORAGE_TOPIC, value: "_connect_status"}
+          resources:
+            requests: {cpu: "500m", memory: 1Gi}
+            limits: {cpu: "2", memory: 2Gi}
+          readinessProbe:
+            httpGet: {path: /connectors, port: 8083}
+            initialDelaySeconds: 30

@@ -1,0 +1,11 @@
+{
+  "suite_name": "products_suite",
+  "meta": {"table": "lakehouse.silver.products"},
+  "expectations": [
+    {"expectation_type": "expect_column_values_to_be_unique",
+     "kwargs": {"table": "lakehouse.silver.products", "column": "product_id"}},
+    {"expectation_type": "expect_column_values_to_be_between",
+     "kwargs": {"table": "lakehouse.silver.products", "column": "unit_price",
+                "min_value": 0, "max_value": 100000}}
+  ]
+}

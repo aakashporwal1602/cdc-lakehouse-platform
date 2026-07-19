@@ -1,0 +1,18 @@
+# Declarative list of Gold datasets to expose in Superset.
+# Import via: superset import-datasources -p infra/superset/datasets.yaml
+databases:
+  - database_name: "Lakehouse (Trino)"
+    sqlalchemy_uri: "trino://analytics@trino:8080/lakehouse"
+    tables:
+      - table_name: customer_360
+        schema: gold
+      - table_name: sales_daily
+        schema: gold
+      - table_name: revenue_daily
+        schema: gold
+      - table_name: inventory_health
+        schema: gold
+      - table_name: order_funnel
+        schema: gold
+      - table_name: fulfillment_sla
+        schema: gold

@@ -1,0 +1,46 @@
+flowchart LR
+    subgraph Source["OLTP Source"]
+        PG[(PostgreSQL<br/>commerce)]
+    end
+    subgraph Capture["Change Capture"]
+        DBZ[Debezium<br/>Kafka Connect]
+        SR[Schema Registry]
+    end
+    subgraph Bus["Streaming Bus"]
+        K[(Kafka<br/>commerce.public.*)]
+        DLQ[(DLQ<br/>dlq.commerce)]
+    end
+    subgraph Compute["Stream Processing"]
+        SB[Spark: Bronze]
+        SS[Spark: Silver]
+        SG[Spark/dbt: Gold]
+    end
+    subgraph Lake["Lakehouse (Iceberg on S3/MinIO)"]
+        BR[(bronze.*)]
+        SI[(silver.*)]
+        GO[(gold.*)]
+    end
+    subgraph Serve["Serving & BI"]
+        TR[Trino]
+        SUP[Superset]
+    end
+    subgraph Ops["Platform Ops"]
+        AF[Airflow]
+        GE[Great Expectations]
+        PR[Prometheus]
+        GRA[Grafana]
+    end
+
+    PG -- WAL / pgoutput --> DBZ
+    DBZ <--> SR
+    DBZ --> K
+    DBZ -.errors.-> DLQ
+    K --> SB --> BR --> SS --> SI --> SG --> GO
+    GO --> TR --> SUP
+    SI --> TR
+    AF --> SG
+    AF --> GE
+    GE -.metrics.-> PR
+    SB -.metrics.-> PR
+    SS -.metrics.-> PR
+    PR --> GRA

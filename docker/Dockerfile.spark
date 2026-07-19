@@ -1,0 +1,31 @@
+# Spark image with Iceberg + Kafka + S3 runtime jars and the cdc_platform package.
+FROM apache/spark:3.5.1-python3
+
+USER root
+ENV ICEBERG_VERSION=1.5.2 \
+    SCALA_VERSION=2.12 \
+    HADOOP_AWS_VERSION=3.3.4 \
+    AWS_SDK_VERSION=1.12.767 \
+    SPARK_JARS=/opt/spark/jars
+
+# Runtime jars (baked in so `spark-submit` needs no --packages at run time).
+RUN set -eux; \
+    curl -fSL -o ${SPARK_JARS}/iceberg-spark-runtime.jar \
+      https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_${SCALA_VERSION}/${ICEBERG_VERSION}/iceberg-spark-runtime-3.5_${SCALA_VERSION}-${ICEBERG_VERSION}.jar; \
+    curl -fSL -o ${SPARK_JARS}/iceberg-aws-bundle.jar \
+      https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/${ICEBERG_VERSION}/iceberg-aws-bundle-${ICEBERG_VERSION}.jar; \
+    curl -fSL -o ${SPARK_JARS}/spark-sql-kafka.jar \
+      https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_${SCALA_VERSION}/3.5.1/spark-sql-kafka-0-10_${SCALA_VERSION}-3.5.1.jar; \
+    curl -fSL -o ${SPARK_JARS}/spark-avro.jar \
+      https://repo1.maven.org/maven2/org/apache/spark/spark-avro_${SCALA_VERSION}/3.5.1/spark-avro_${SCALA_VERSION}-3.5.1.jar; \
+    curl -fSL -o ${SPARK_JARS}/hadoop-aws.jar \
+      https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP_AWS_VERSION}/hadoop-aws-${HADOOP_AWS_VERSION}.jar
+
+WORKDIR /opt/app
+COPY pyproject.toml requirements.txt ./
+COPY src ./src
+COPY configs ./configs
+RUN pip install --no-cache-dir -e ".[spark]"
+
+ENV PYTHONPATH=/opt/app/src
+USER spark

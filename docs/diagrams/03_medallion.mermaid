@@ -1,0 +1,19 @@
+flowchart LR
+    subgraph BRONZE["🥉 Bronze — raw, immutable"]
+        B1[Every CDC event<br/>op, before, after, LSN, ts]
+        B2[Append-only<br/>replayable audit log]
+    end
+    subgraph SILVER["🥈 Silver — clean, current"]
+        S1[Deduplicated by PK]
+        S2[Ordered by LSN]
+        S3[Deletes tombstoned]
+        S4[Schema-conformed]
+    end
+    subgraph GOLD["🥇 Gold — business marts"]
+        G1[Customer Analytics]
+        G2[Sales Dashboard]
+        G3[Revenue]
+        G4[Inventory]
+        G5[Order Metrics]
+    end
+    BRONZE --> SILVER --> GOLD

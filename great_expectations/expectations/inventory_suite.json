@@ -1,0 +1,11 @@
+{
+  "suite_name": "inventory_suite",
+  "meta": {"table": "lakehouse.silver.inventory"},
+  "expectations": [
+    {"expectation_type": "expect_column_values_to_be_unique",
+     "kwargs": {"table": "lakehouse.silver.inventory", "column": "inventory_id"}},
+    {"expectation_type": "expect_column_values_to_be_between",
+     "kwargs": {"table": "lakehouse.silver.inventory", "column": "quantity_on_hand",
+                "min_value": 0, "max_value": 10000000}}
+  ]
+}

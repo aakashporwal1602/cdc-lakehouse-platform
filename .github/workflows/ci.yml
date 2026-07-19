@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint & type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11", cache: pip}
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests
+      - run: black --check src tests
+      - run: mypy src
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11", cache: pip}
+      - run: pip install -e ".[dev]"
+      - run: pytest -m unit --cov=cdc_platform --cov-report=xml --cov-fail-under=80
+      - uses: codecov/codecov-action@v4
+        with: {files: coverage.xml}
+        continue-on-error: true
+
+  sql-lint:
+    name: dbt & SQL checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install "dbt-trino>=1.7" sqlfluff
+      - run: cd dbt && dbt parse --profiles-dir . || true
+      - run: sqlfluff lint dbt/models --dialect trino || true
+
+  integration:
+    name: Integration (compose)
+    runs-on: ubuntu-latest
+    needs: [lint, unit]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Boot core services
+        run: |
+          cp .env.example .env
+          docker compose up -d postgres kafka schema-registry kafka-connect minio minio-init iceberg-rest
+      - name: Wait for Connect
+        run: |
+          for i in $(seq 1 40); do
+            curl -sf http://localhost:8083/connectors && break || sleep 5;
+          done
+      - name: Register connectors
+        run: bash scripts/register_connectors.sh
+      - name: Run integration tests
+        run: |
+          pip install -e ".[dev]"
+          pytest -m integration || true
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs --tail=200
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

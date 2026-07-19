@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cdc-platform"
+version = "1.0.0"
+description = "Production-grade Change Data Capture lakehouse platform"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Data Engineering" }]
+dependencies = [
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "structlog>=24.1",
+    "python-json-logger>=2.0",
+    "prometheus-client>=0.20",
+    "tenacity>=8.2",
+    "faker>=24.0",
+    "psycopg2-binary>=2.9",
+    "confluent-kafka>=2.3",
+]
+
+[project.optional-dependencies]
+spark = ["pyspark==3.5.1"]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-mock>=3.12",
+    "ruff>=0.4",
+    "mypy>=1.9",
+    "black>=24.3",
+    "types-psycopg2",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM", "TID", "PL"]
+ignore = ["PLR0913"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+addopts = "-ra -q --strict-markers --cov=cdc_platform --cov-report=term-missing"
+testpaths = ["tests"]
+markers = [
+    "unit: fast isolated tests",
+    "integration: require docker-compose services",
+]

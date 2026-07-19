@@ -1,0 +1,42 @@
+# ============================================================================
+# Table registry - single source of truth for the medallion pipeline.
+# Adding a new replicated table = one entry here (no code changes).
+# ============================================================================
+version: 1
+source_schema: public
+
+tables:
+  customers:
+    primary_key: [customer_id]
+    order_by: [source_lsn, source_ts_ms]      # deterministic ordering for dedup
+    partition_by: [months(silver_updated_at)]
+    scd: type1                                 # keep current state only
+    dq_suite: customers_suite
+
+  products:
+    primary_key: [product_id]
+    order_by: [source_lsn, source_ts_ms]
+    partition_by: [category]
+    scd: type1
+    dq_suite: products_suite
+
+  inventory:
+    primary_key: [inventory_id]
+    order_by: [source_lsn, source_ts_ms]
+    partition_by: [warehouse_id]
+    scd: type1
+    dq_suite: inventory_suite
+
+  orders:
+    primary_key: [order_id]
+    order_by: [source_lsn, source_ts_ms]
+    partition_by: [days(order_ts)]
+    scd: type1
+    dq_suite: orders_suite
+
+  payments:
+    primary_key: [payment_id]
+    order_by: [source_lsn, source_ts_ms]
+    partition_by: [days(payment_ts)]
+    scd: type1
+    dq_suite: payments_suite

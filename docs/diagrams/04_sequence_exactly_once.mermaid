@@ -1,0 +1,15 @@
+sequenceDiagram
+    autonumber
+    participant K as Kafka
+    participant S as Spark (Silver)
+    participant CP as Checkpoint (S3)
+    participant IB as Iceberg (silver)
+
+    S->>CP: read committed offsets
+    S->>K: fetch batch [o_start, o_end)
+    K-->>S: change events
+    S->>S: dedup by PK, order by LSN
+    S->>IB: MERGE INTO (idempotent, LSN-guarded)
+    IB-->>S: snapshot committed (atomic)
+    S->>CP: commit offsets = o_end
+    Note over S,IB: If crash before offset commit,<br/>batch replays; MERGE is idempotent<br/>→ effectively exactly-once

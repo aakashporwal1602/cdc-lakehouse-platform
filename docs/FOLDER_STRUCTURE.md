@@ -1,0 +1,222 @@
+# Folder structure
+
+```
+.
+.env.example
+.github
+  ISSUE_TEMPLATE
+  dependabot.yml
+  pull_request_template.md
+  workflows
+    ci.yml
+    codeql.yml
+    docker.yml
+    release.yml
+.gitignore
+.pre-commit-config.yaml
+CODEOWNERS
+CONTRIBUTING.md
+LICENSE
+Makefile
+README.md
+SECURITY.md
+airflow
+  dags
+    __pycache__
+    cdc_maintenance_dag.py
+    cdc_medallion_dag.py
+  plugins
+configs
+  tables.yml
+dbt
+  README.md
+  dbt_project.yml
+  macros
+    cents_to_dollars.sql
+  models
+    marts
+      _marts.yml
+      customer_360.sql
+      dim_customer.sql
+      fct_sales.sql
+      fulfillment_sla.sql
+      inventory_health.sql
+      order_funnel.sql
+      revenue_by_segment.sql
+      revenue_daily.sql
+      sales_daily.sql
+    staging
+      _sources.yml
+      stg_customers.sql
+      stg_inventory.sql
+      stg_orders.sql
+      stg_payments.sql
+      stg_products.sql
+  packages.yml
+  profiles.yml
+  tests
+    assert_net_revenue_non_negative.sql
+docker
+docker-compose.yml
+  .dockerignore
+  Dockerfile.airflow
+  Dockerfile.app
+  Dockerfile.spark
+docs
+  ARCHITECTURE.md
+  DESIGN_DECISIONS.md
+  FOLDER_STRUCTURE.md
+  adr
+    0001-record-architecture-decisions.md
+    0002-log-based-cdc-with-debezium.md
+    0003-iceberg-as-table-format.md
+    0004-exactly-once-via-idempotent-merge.md
+  diagrams
+    01_system_architecture.mermaid
+    02_cdc_flow.mermaid
+    03_medallion.mermaid
+    04_sequence_exactly_once.mermaid
+    05_deployment.mermaid
+  images
+  interview
+    01_cdc_debezium.md
+    02_kafka.md
+    03_spark_streaming.md
+    04_iceberg.md
+    05_modeling.md
+    06_system_design.md
+    README.md
+great_expectations
+  checkpoints
+    gold_checkpoint.yml
+  expectations
+    customers_suite.json
+    inventory_suite.json
+    orders_suite.json
+    payments_suite.json
+    products_suite.json
+infra
+  debezium
+    postgres-connector.json
+  grafana
+    provisioning
+      dashboards
+        cdc_pipeline.json
+        dashboards.yml
+      datasources
+        datasource.yml
+  kafka
+  postgres
+    init
+      01_schema.sql
+      02_replication.sql
+  prometheus
+    alerts.yml
+    prometheus.yml
+  spark
+  superset
+    bootstrap.sh
+    dashboards.md
+    datasets.yaml
+    superset_config.py
+  trino
+    catalog
+      lakehouse.properties
+      memory.properties
+    config.properties
+    jvm.config
+    node.properties
+k8s
+  base
+    configmap.yaml
+    hpa.yaml
+    kafka-connect-deployment.yaml
+    kafka-statefulset.yaml
+    kustomization.yaml
+    namespace.yaml
+    postgres-statefulset.yaml
+    secret.yaml
+    services.yaml
+    spark-streaming-deployment.yaml
+    trino-deployment.yaml
+  overlays
+    prod
+      kustomization.yaml
+      replicas.yaml
+    staging
+      kustomization.yaml
+      replicas.yaml
+pyproject.toml
+requirements-dev.txt
+requirements.txt
+scripts
+  register_connectors.sh
+  smoke_test.sh
+  submit_spark.sh
+src
+  cdc_platform
+    __init__.py
+    __pycache__
+    common
+      __init__.py
+      __pycache__
+      config.py
+      logging.py
+      metrics.py
+      retry.py
+      schema_registry.py
+      tables.py
+    generators
+      __init__.py
+      __pycache__
+      change_simulator.py
+      db.py
+      factories.py
+      seed_source.py
+    ingestion
+      __init__.py
+      __pycache__
+      connector_manager.py
+    quality
+      __init__.py
+      __pycache__
+      run_checkpoints.py
+      trino_validator.py
+    streaming
+      __init__.py
+      __main__.py
+      __pycache__
+      bronze
+        __init__.py
+        __pycache__
+        job.py
+      debezium.py
+      engine.py
+      gold
+        __init__.py
+        __pycache__
+        job.py
+      session.py
+      silver
+        __init__.py
+        __pycache__
+        job.py
+tests
+  __init__.py
+  __pycache__
+  conftest.py
+  integration
+    __init__.py
+    __pycache__
+    test_end_to_end.py
+  unit
+    __init__.py
+    __pycache__
+    test_config.py
+    test_connector_manager.py
+    test_factories.py
+    test_quality_runner.py
+    test_retry.py
+    test_tables_registry.py
+    test_trino_validator.py
+```

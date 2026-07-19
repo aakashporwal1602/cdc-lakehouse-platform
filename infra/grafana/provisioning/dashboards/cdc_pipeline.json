@@ -1,0 +1,42 @@
+{
+  "title": "CDC Pipeline Health",
+  "uid": "cdc-pipeline",
+  "schemaVersion": 39,
+  "timezone": "browser",
+  "refresh": "10s",
+  "time": {"from": "now-6h", "to": "now"},
+  "templating": {"list": [
+    {"name": "table", "type": "query", "datasource": "Prometheus",
+     "query": "label_values(cdc_events_total, table)", "includeAll": true, "multi": true}
+  ]},
+  "panels": [
+    {"id": 1, "title": "CDC Events / sec by op", "type": "timeseries",
+     "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+     "targets": [{"expr": "sum by (op) (rate(cdc_events_total{table=~\"$table\"}[1m]))",
+                  "legendFormat": "{{op}}"}]},
+    {"id": 2, "title": "End-to-end lag (s)", "type": "timeseries",
+     "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+     "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"steps": [
+        {"color": "green", "value": null}, {"color": "red", "value": 300}]}}},
+     "targets": [{"expr": "cdc_end_to_end_lag_seconds{table=~\"$table\"}",
+                  "legendFormat": "{{table}}"}]},
+    {"id": 3, "title": "Micro-batch duration p95 (s)", "type": "timeseries",
+     "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+     "targets": [{"expr": "histogram_quantile(0.95, sum by (le, layer) (rate(cdc_batch_duration_seconds_bucket[5m])))",
+                  "legendFormat": "{{layer}}"}]},
+    {"id": 4, "title": "Rows per batch", "type": "timeseries",
+     "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+     "targets": [{"expr": "cdc_batch_rows{table=~\"$table\"}", "legendFormat": "{{layer}}/{{table}}"}]},
+    {"id": 5, "title": "DQ failures (15m)", "type": "stat",
+     "gridPos": {"h": 6, "w": 8, "x": 0, "y": 16},
+     "fieldConfig": {"defaults": {"thresholds": {"steps": [
+        {"color": "green", "value": null}, {"color": "red", "value": 1}]}}},
+     "targets": [{"expr": "sum(increase(cdc_dq_validation_failures_total[15m]))"}]},
+    {"id": 6, "title": "Total events processed", "type": "stat",
+     "gridPos": {"h": 6, "w": 8, "x": 8, "y": 16},
+     "targets": [{"expr": "sum(cdc_events_total)"}]},
+    {"id": 7, "title": "Deletes processed", "type": "stat",
+     "gridPos": {"h": 6, "w": 8, "x": 16, "y": 16},
+     "targets": [{"expr": "sum(cdc_events_total{op=\"d\"})"}]}
+  ]
+}

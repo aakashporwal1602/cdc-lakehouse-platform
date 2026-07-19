@@ -1,0 +1,295 @@
+# ============================================================================
+# CDC Lakehouse Platform - full local stack.
+# `make up` boots everything; see README for URLs & credentials.
+# ============================================================================
+name: cdc-lakehouse
+
+x-common-env: &common-env
+  TZ: UTC
+
+networks:
+  cdc:
+    driver: bridge
+
+volumes:
+  pg_data:
+  minio_data:
+  grafana_data:
+  airflow_pg:
+
+services:
+  # ----------------------------------------------------------------- Postgres
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_wal_senders=10"
+      - "-c"
+      - "max_replication_slots=10"
+    environment:
+      <<: *common-env
+      POSTGRES_DB: ${POSTGRES_DB:-commerce}
+      POSTGRES_USER: ${POSTGRES_USER:-cdc_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_prod}
+    ports: ["5432:5432"]
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cdc_admin} -d ${POSTGRES_DB:-commerce}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [cdc]
+
+  # -------------------------------------------------------------------- Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: kafka
+    ports: ["9092:9092", "29092:29092"]
+    environment:
+      <<: *common-env
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:29093,EXTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 6
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+    networks: [cdc]
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.1
+    container_name: schema-registry
+    depends_on:
+      kafka: {condition: service_healthy}
+    ports: ["8081:8081"]
+    environment:
+      <<: *common-env
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8081/subjects"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    networks: [cdc]
+
+  kafka-connect:
+    image: debezium/connect:2.7.3.Final
+    container_name: kafka-connect
+    depends_on:
+      kafka: {condition: service_healthy}
+      schema-registry: {condition: service_healthy}
+    ports: ["8083:8083"]
+    environment:
+      <<: *common-env
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: cdc-connect
+      CONFIG_STORAGE_TOPIC: _connect_configs
+      OFFSET_STORAGE_TOPIC: _connect_offsets
+      STATUS_STORAGE_TOPIC: _connect_status
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+      VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-commerce}
+      POSTGRES_USER: ${POSTGRES_USER:-cdc_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_prod}
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8083/connectors"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: [cdc]
+
+  # ------------------------------------------------------------- MinIO (S3)
+  minio:
+    image: minio/minio:RELEASE.2024-06-13T22-53-53Z
+    container_name: minio
+    command: server /data --console-address ":9001"
+    ports: ["9000:9000", "9001:9001"]
+    environment:
+      <<: *common-env
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    volumes: [minio_data:/data]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [cdc]
+
+  minio-init:
+    image: minio/mc:RELEASE.2024-06-12T14-34-03Z
+    depends_on:
+      minio: {condition: service_healthy}
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${S3_ACCESS_KEY:-minioadmin} ${S3_SECRET_KEY:-minioadmin} &&
+      mc mb -p local/lakehouse || true &&
+      mc anonymous set download local/lakehouse || true &&
+      echo 'bucket ready'"
+    networks: [cdc]
+
+  # ----------------------------------------------------- Iceberg REST catalog
+  iceberg-rest:
+    image: tabulario/iceberg-rest:1.5.0
+    container_name: iceberg-rest
+    depends_on:
+      minio-init: {condition: service_completed_successfully}
+    ports: ["8181:8181"]
+    environment:
+      <<: *common-env
+      CATALOG_WAREHOUSE: s3://lakehouse/warehouse
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://minio:9000
+      CATALOG_S3_PATH__STYLE__ACCESS: "true"
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-minioadmin}
+      AWS_REGION: us-east-1
+    networks: [cdc]
+
+  # -------------------------------------------------------------------- Spark
+  spark-master:
+    build: {context: ., dockerfile: docker/Dockerfile.spark}
+    container_name: spark-master
+    command: ["/opt/spark/sbin/start-master.sh", "-h", "spark-master"]
+    ports: ["7077:7077", "8090:8080"]
+    env_file: [.env]
+    environment:
+      <<: *common-env
+      SPARK_NO_DAEMONIZE: "true"
+    volumes: ["./:/opt/app:ro"]
+    networks: [cdc]
+
+  spark-worker:
+    build: {context: ., dockerfile: docker/Dockerfile.spark}
+    container_name: spark-worker
+    depends_on: [spark-master]
+    command: ["/opt/spark/sbin/start-worker.sh", "spark://spark-master:7077"]
+    ports: ["8091:8081"]
+    env_file: [.env]
+    environment:
+      <<: *common-env
+      SPARK_WORKER_CORES: "4"
+      SPARK_WORKER_MEMORY: "4g"
+      SPARK_NO_DAEMONIZE: "true"
+    volumes: ["./:/opt/app:ro"]
+    networks: [cdc]
+
+  # -------------------------------------------------------------------- Trino
+  trino:
+    image: trinodb/trino:451
+    container_name: trino
+    depends_on: [iceberg-rest]
+    ports: ["8080:8080"]
+    volumes:
+      - ./infra/trino/catalog:/etc/trino/catalog:ro
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/v1/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    networks: [cdc]
+
+  # ----------------------------------------------------------------- Superset
+  superset:
+    image: apache/superset:4.0.1
+    container_name: superset
+    depends_on: [trino]
+    ports: ["8088:8088"]
+    environment:
+      <<: *common-env
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-change_me_in_prod_please}
+      ADMIN_USER: admin
+      ADMIN_PASSWORD: admin
+    volumes:
+      - ./infra/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+      - ./infra/superset/bootstrap.sh:/app/bootstrap.sh:ro
+    command: ["/bin/sh", "-c", "pip install trino sqlalchemy-trino && /app/bootstrap.sh && superset run -h 0.0.0.0 -p 8088"]
+    networks: [cdc]
+
+  # ------------------------------------------------------------------ Airflow
+  airflow-db:
+    image: postgres:16
+    container_name: airflow-db
+    environment:
+      <<: *common-env
+      POSTGRES_DB: airflow
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+    volumes: [airflow_pg:/var/lib/postgresql/data]
+    networks: [cdc]
+
+  airflow:
+    build: {context: ., dockerfile: docker/Dockerfile.airflow}
+    container_name: airflow
+    depends_on: [airflow-db]
+    ports: ["8085:8080"]
+    env_file: [.env]
+    environment:
+      <<: *common-env
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      _AIRFLOW_WWW_USER_USERNAME: airflow
+      _AIRFLOW_WWW_USER_PASSWORD: airflow
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - ./:/opt/app:ro
+    command: ["bash", "-c", "airflow db migrate && airflow users create -r Admin -u airflow -p airflow -f a -l b -e a@b.c || true; airflow scheduler & exec airflow webserver"]
+    networks: [cdc]
+
+  # -------------------------------------------------------------- Observability
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: prometheus
+    ports: ["9090:9090"]
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    networks: [cdc]
+
+  pushgateway:
+    image: prom/pushgateway:v1.9.0
+    container_name: pushgateway
+    ports: ["9091:9091"]
+    networks: [cdc]
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: grafana
+    depends_on: [prometheus]
+    ports: ["3000:3000"]
+    environment:
+      <<: *common-env
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks: [cdc]

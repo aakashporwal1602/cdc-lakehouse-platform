@@ -1,0 +1,24 @@
+# Long-running Silver stream as a Deployment. In production prefer the Spark
+# Operator (SparkApplication CRD); this Deployment form is shown for portability.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-silver-orders
+  namespace: cdc-platform
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: spark-silver, table: orders}}
+  template:
+    metadata: {labels: {app: spark-silver, table: orders}}
+    spec:
+      containers:
+        - name: silver
+          image: ghcr.io/your-org/cdc-spark:latest
+          command: ["/opt/spark/bin/spark-submit"]
+          args: ["-m", "cdc_platform.streaming", "silver", "--table", "orders"]
+          envFrom:
+            - {configMapRef: {name: cdc-config}}
+            - {secretRef: {name: cdc-secrets}}
+          resources:
+            requests: {cpu: "2", memory: 4Gi}
+            limits: {cpu: "4", memory: 8Gi}

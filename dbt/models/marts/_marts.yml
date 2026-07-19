@@ -1,0 +1,35 @@
+version: 2
+models:
+  - name: dim_customer
+    description: "Conformed customer dimension."
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+  - name: customer_360
+    description: "RFM + LTV customer analytics mart."
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+      - name: lifetime_value
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+  - name: fct_sales
+    description: "Captured-payment sales fact."
+    columns:
+      - name: payment_id
+        tests: [unique, not_null]
+      - name: sale_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+  - name: revenue_daily
+    columns:
+      - name: revenue_date
+        tests: [unique, not_null]
+  - name: inventory_health
+    columns:
+      - name: stock_status
+        tests:
+          - accepted_values:
+              values: ['stockout', 'low', 'healthy']

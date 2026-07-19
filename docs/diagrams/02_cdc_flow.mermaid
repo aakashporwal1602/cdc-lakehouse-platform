@@ -1,0 +1,19 @@
+flowchart TD
+    A[Row mutated in Postgres<br/>INSERT / UPDATE / DELETE] --> B[WAL entry written]
+    B --> C[Debezium reads logical<br/>replication slot pgoutput]
+    C --> D{op code}
+    D -- c/r create/read --> E[after image]
+    D -- u update --> F[before + after image]
+    D -- d delete --> G[before image + tombstone]
+    E --> H[Avro-encode via Schema Registry]
+    F --> H
+    G --> H
+    H --> I[(Kafka topic<br/>commerce.public.table)]
+    I --> J[Spark Bronze append<br/>immutable log]
+    J --> K[Spark Silver:<br/>dedup by PK, order by LSN]
+    K --> L{is delete?}
+    L -- yes --> M[MERGE ... WHEN MATCHED THEN DELETE]
+    L -- no --> N[MERGE upsert if LSN newer]
+    M --> O[(silver.table<br/>current state)]
+    N --> O
+    O --> P[Gold marts via dbt]

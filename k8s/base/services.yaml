@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Service
+metadata: {name: postgres, namespace: cdc-platform}
+spec:
+  selector: {app: postgres}
+  ports: [{port: 5432, targetPort: 5432}]
+  clusterIP: None
+---
+apiVersion: v1
+kind: Service
+metadata: {name: kafka, namespace: cdc-platform}
+spec:
+  selector: {app: kafka}
+  ports: [{port: 9092, targetPort: 9092}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: kafka-connect, namespace: cdc-platform}
+spec:
+  selector: {app: kafka-connect}
+  ports: [{port: 8083, targetPort: 8083}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: trino, namespace: cdc-platform}
+spec:
+  selector: {app: trino}
+  ports: [{port: 8080, targetPort: 8080}]

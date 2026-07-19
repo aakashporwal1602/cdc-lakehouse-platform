@@ -1,0 +1,16 @@
+flowchart TB
+    subgraph GH["GitHub"]
+        REPO[Repo] --> GHA[GitHub Actions<br/>CI: lint/test/build]
+    end
+    GHA --> REG[(GHCR<br/>container images)]
+    subgraph K8S["Kubernetes (prod)"]
+        subgraph NS["namespace: cdc-platform"]
+            PGX[Postgres StatefulSet]
+            KFX[Kafka StatefulSet x3]
+            CNX[Connect Deployment x2]
+            SPX[Spark streams]
+            TRX[Trino Deployment + HPA]
+        end
+    end
+    REG --> K8S
+    GHA -->|kubectl apply -k overlays/prod| K8S

@@ -1,0 +1,20 @@
+name: cdc_gold
+version: "1.0.0"
+config-version: 2
+profile: cdc_gold
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  cdc_gold:
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: gold
+      +file_format: iceberg

@@ -1,0 +1,5 @@
+*                 @data-platform-team
+/src/cdc_platform/streaming/  @streaming-guild
+/dbt/             @analytics-engineering
+/infra/           @platform-sre
+/.github/         @platform-sre

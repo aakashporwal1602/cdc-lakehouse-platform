@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: cdc-platform
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector: {matchLabels: {app: postgres}}
+  template:
+    metadata: {labels: {app: postgres}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          args: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10"]
+          ports: [{containerPort: 5432}]
+          env:
+            - {name: POSTGRES_DB, value: commerce}
+            - {name: POSTGRES_USER, value: cdc_admin}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: cdc-secrets, key: POSTGRES_PASSWORD}}
+          resources:
+            requests: {cpu: "500m", memory: 1Gi}
+            limits: {cpu: "2", memory: 2Gi}
+          readinessProbe:
+            exec: {command: ["pg_isready", "-U", "cdc_admin"]}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 20Gi}}

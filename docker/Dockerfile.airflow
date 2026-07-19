@@ -1,0 +1,15 @@
+# Airflow image carrying the cdc_platform package + dbt for orchestration tasks.
+FROM apache/airflow:2.9.2-python3.11
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+USER airflow
+COPY --chown=airflow:airflow pyproject.toml requirements.txt /opt/app/
+COPY --chown=airflow:airflow src /opt/app/src
+COPY --chown=airflow:airflow configs /opt/app/configs
+RUN pip install --no-cache-dir -e /opt/app \
+    && pip install --no-cache-dir "dbt-trino>=1.7" "great-expectations>=0.18" "trino>=0.328"
+
+ENV PYTHONPATH=/opt/app/src

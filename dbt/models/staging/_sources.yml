@@ -1,0 +1,12 @@
+version: 2
+sources:
+  - name: silver
+    catalog: lakehouse
+    schema: silver
+    description: "Deduplicated current-state CDC tables."
+    tables:
+      - name: customers
+      - name: products
+      - name: inventory
+      - name: orders
+      - name: payments
