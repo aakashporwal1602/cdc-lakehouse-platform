@@ -1,5 +1,5 @@
 # Airflow image carrying the cdc_platform package + dbt for orchestration tasks.
-FROM apache/airflow:2.9.2-python3.11
+FROM apache/airflow:3.3.0-python3.11
 
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
