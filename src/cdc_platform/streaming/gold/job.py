@@ -73,9 +73,17 @@ class GoldBuilder:
         )
 
     def build_all(self) -> None:
-        self.revenue_daily()
-        self.inventory_health()
-        self.order_metrics()
+        # Each mart is independent; skip (with a warning) any whose source Silver
+        # table isn't built yet, so Gold works incrementally as tables land.
+        for name, builder in (
+            ("revenue_daily", self.revenue_daily),
+            ("inventory_health", self.inventory_health),
+            ("order_metrics", self.order_metrics),
+        ):
+            try:
+                builder()
+            except Exception as exc:  # noqa: BLE001
+                log.warning("gold_mart_skipped", mart=name, reason=str(exc)[:200])
 
 
 def run() -> None:

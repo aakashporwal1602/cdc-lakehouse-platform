@@ -9,8 +9,10 @@ job small and consistent (SOLID: SRP + OCP).
 from __future__ import annotations
 
 import abc
+import os
 import time
 
+from prometheus_client import REGISTRY, push_to_gateway
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.streaming import StreamingQuery
 
@@ -64,12 +66,35 @@ class StreamingJob(abc.ABC):
             self.process_batch(batch_df, batch_id)
             BATCH_ROWS.labels(self.layer, self.table).set(rows)
             BATCH_DURATION.labels(self.layer, self.table).observe(time.monotonic() - start)
+            self._push_metrics()
             self.log.info("batch_committed", batch_id=batch_id, rows=rows)
         except Exception:
             self.log.exception("batch_failed", batch_id=batch_id)
             raise
         finally:
             batch_df.unpersist()
+
+    def _push_metrics(self) -> None:
+        """Push the current metric values to the Prometheus Pushgateway.
+
+        Streaming drivers are long-lived but their metrics live in-process, so we
+        push after every micro-batch. Prometheus scrapes the Pushgateway; a
+        per-(layer, table) grouping key keeps concurrent jobs from overwriting
+        one another. Best-effort: a metrics failure must never break a batch.
+        """
+
+        gateway = os.getenv("PROMETHEUS_PUSHGATEWAY", "")
+        if not gateway:
+            return
+        try:
+            push_to_gateway(
+                gateway.replace("http://", "").replace("https://", ""),
+                job="cdc_streaming",
+                registry=REGISTRY,
+                grouping_key={"layer": self.layer, "table": self.table},
+            )
+        except Exception:  # noqa: BLE001 - observability must not break ingestion
+            self.log.warning("metrics_push_failed")
 
     def start(self, trigger_interval: str = "30 seconds") -> StreamingQuery:
         self.log.info("starting_stream", checkpoint=self.checkpoint_location())

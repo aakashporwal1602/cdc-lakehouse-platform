@@ -7,7 +7,7 @@ name = "cdc-platform"
 version = "1.0.0"
 description = "Production-grade Change Data Capture lakehouse platform"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 license = { text = "MIT" }
 authors = [{ name = "Data Engineering" }]
 dependencies = [
@@ -17,13 +17,17 @@ dependencies = [
     "python-json-logger>=2.0",
     "prometheus-client>=0.20",
     "tenacity>=8.2",
-    "faker>=24.0",
-    "psycopg2-binary>=2.9",
-    "confluent-kafka>=2.3",
+    "pyyaml>=6.0",
+    "requests>=2.31",
+    # Lets modern PEP 604/585 annotations resolve on the Spark image's Python 3.8.
+    "eval-type-backport>=0.2",
 ]
 
 [project.optional-dependencies]
+# Kept light so the Spark image doesn't pull compile-heavy native libs.
 spark = ["pyspark==3.5.1"]
+# Source-DB traffic generators / Kafka client (used by generators + tests).
+ingest = ["faker>=24.0", "psycopg2-binary>=2.9", "confluent-kafka>=2.3"]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
@@ -32,6 +36,9 @@ dev = [
     "mypy>=1.9",
     "black>=24.3",
     "types-psycopg2",
+    "faker>=24.0",
+    "psycopg2-binary>=2.9",
+    "confluent-kafka>=2.3",
 ]
 
 [tool.setuptools.packages.find]

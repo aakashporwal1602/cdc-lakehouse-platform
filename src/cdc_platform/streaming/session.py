@@ -30,7 +30,13 @@ def build_spark(app_name: str, settings: Settings | None = None) -> SparkSession
         .config(f"spark.sql.catalog.{ib.catalog_name}.io-impl", "org.apache.iceberg.aws.s3.S3FileIO")
         .config(f"spark.sql.catalog.{ib.catalog_name}.s3.endpoint", s3.endpoint)
         .config(f"spark.sql.catalog.{ib.catalog_name}.s3.path-style-access", "true")
+        # Iceberg S3FileIO (AWS SDK v2) needs an explicit region + credentials
+        # when talking to MinIO -- the default provider chain finds none.
+        .config(f"spark.sql.catalog.{ib.catalog_name}.client.region", s3.region)
+        .config(f"spark.sql.catalog.{ib.catalog_name}.s3.access-key-id", s3.access_key)
+        .config(f"spark.sql.catalog.{ib.catalog_name}.s3.secret-access-key", s3.secret_key)
         .config("spark.sql.defaultCatalog", ib.catalog_name)
+        .config("spark.sql.warehouse.dir", "/tmp/spark-warehouse")
         .config("spark.sql.shuffle.partitions", str(spark.shuffle_partitions))
         # S3A (for checkpoints)
         .config("spark.hadoop.fs.s3a.endpoint", s3.endpoint)

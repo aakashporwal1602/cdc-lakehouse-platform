@@ -1,0 +1,9 @@
+# Debezium Connect + the Confluent Avro converter.
+# The stock debezium/connect image ships only JSON/String converters, so the
+# Confluent Avro converter classes are copied in from the cp-schema-registry
+# image (already present locally -> no extra large pull). The jars land in the
+# Connect plugin path so `io.confluent.connect.avro.AvroConverter` resolves.
+FROM debezium/connect:2.7.3.Final
+COPY --from=confluentinc/cp-schema-registry:7.6.1 \
+     /usr/share/java/kafka-serde-tools/ \
+     /kafka/connect/avro-converter/

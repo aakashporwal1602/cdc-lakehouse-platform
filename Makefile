@@ -40,11 +40,14 @@ seed: ## Generate + load sample data into Postgres
 simulate: ## Emit a continuous stream of INSERT/UPDATE/DELETE
 	python -m cdc_platform.generators.change_simulator
 
+# Which table the streaming jobs run for (override: make bronze TABLE=customers)
+TABLE ?= orders
+
 .PHONY: bronze silver gold
-bronze: ## Submit the Bronze streaming job
-	bash scripts/submit_spark.sh bronze
-silver: ## Submit the Silver streaming job
-	bash scripts/submit_spark.sh silver
+bronze: ## Submit the Bronze streaming job (TABLE=orders by default)
+	bash scripts/submit_spark.sh bronze $(TABLE)
+silver: ## Submit the Silver streaming job (TABLE=orders by default)
+	bash scripts/submit_spark.sh silver $(TABLE)
 gold: ## Submit the Gold batch job
 	bash scripts/submit_spark.sh gold
 
