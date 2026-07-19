@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with: {python-version: "3.11", cache: pip}
       - run: pip install -e ".[dev]"
       - run: ruff check src tests
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with: {python-version: "3.11", cache: pip}
       - run: pip install -e ".[dev]"
       - run: pytest -m unit --cov=cdc_platform --cov-report=xml --cov-fail-under=80
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with: {python-version: "3.11"}
       - run: pip install "dbt-trino>=1.7" sqlfluff
       - run: cd dbt && dbt parse --profiles-dir . || true
