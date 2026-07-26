@@ -3,7 +3,7 @@
 # Confluent Avro converter classes are copied in from the cp-schema-registry
 # image (already present locally -> no extra large pull). The jars land in the
 # Connect plugin path so `io.confluent.connect.avro.AvroConverter` resolves.
-FROM debezium/connect:2.7.3.Final
+FROM debezium/connect:3.0.0.Final
 COPY --from=confluentinc/cp-schema-registry:7.6.1 \
      /usr/share/java/kafka-serde-tools/ \
      /kafka/connect/avro-converter/
