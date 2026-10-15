@@ -25,7 +25,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Kept light so the Spark image doesn't pull compile-heavy native libs.
-spark = ["pyspark==3.5.1"]
+spark = ["pyspark==4.2.0"]
 # Source-DB traffic generators / Kafka client (used by generators + tests).
 ingest = ["faker>=24.0", "psycopg2-binary>=2.9", "confluent-kafka>=2.3"]
 dev = [
