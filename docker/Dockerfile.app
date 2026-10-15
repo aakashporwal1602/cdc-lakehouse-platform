@@ -1,5 +1,5 @@
 # Lightweight image for the generators / connector CLIs (seed, simulate).
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 WORKDIR /opt/app
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev \
